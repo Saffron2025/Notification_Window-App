@@ -38,10 +38,6 @@ app.use(express.json());
 
 // ---------- API ROUTES ----------
 
-// 📌 Home route check
-app.get("/", (req, res) => {
-  res.send("Backend is running...");
-});
 
 // 📌 Get users list
 app.get("/api/users", (req, res) => {
