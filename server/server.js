@@ -33,7 +33,7 @@ function saveUsers() {
 }
 
 // 📌 Serve admin panel
-app.use("/", express.static(path.join(__dirname, "admin-panel")));
+app.use("/", express.static(path.join(__dirname, "admin-Panel")));
 app.use(express.json());
 
 // ---------- API ROUTES ----------
