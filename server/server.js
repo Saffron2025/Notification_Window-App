@@ -6,28 +6,49 @@ const app = express();
 const server = http.createServer(app);
 const { Server } = require("socket.io");
 
-const io = new Server(server, { cors: { origin: "*" } });
+const io = new Server(server, { 
+  cors: { 
+    origin: "*",
+    methods: ["GET", "POST"]
+  } 
+});
 
+// 📌 USERS FILE (Render safe path)
 const USERS_FILE = path.join(__dirname, "users.json");
 
-let users = {};
-if (fs.existsSync(USERS_FILE)) {
-  users = JSON.parse(fs.readFileSync(USERS_FILE));
+// 📌 Ensure file exists
+if (!fs.existsSync(USERS_FILE)) {
+  fs.writeFileSync(USERS_FILE, "{}");
 }
 
+let users = JSON.parse(fs.readFileSync(USERS_FILE));
+
+// 📌 Save function (Render safe - no crash)
 function saveUsers() {
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+  try {
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+  } catch (err) {
+    console.error("Cannot write users.json on Render:", err);
+  }
 }
 
+// 📌 Serve admin panel
 app.use("/", express.static(path.join(__dirname, "admin-panel")));
 app.use(express.json());
 
-// GET USERS
+// ---------- API ROUTES ----------
+
+// 📌 Home route check
+app.get("/", (req, res) => {
+  res.send("Backend is running...");
+});
+
+// 📌 Get users list
 app.get("/api/users", (req, res) => {
   res.json(users);
 });
 
-// SEND MESSAGE
+// 📌 Send Message
 app.post("/api/send", (req, res) => {
   const { message, userIds = [], meta = {} } = req.body;
   const now = new Date().toISOString();
@@ -48,6 +69,7 @@ app.post("/api/send", (req, res) => {
   res.json({ deliveredTo: targets.length, sentAt: now });
 });
 
+// 📌 Deactivate user
 app.post("/api/deactivate", (req, res) => {
   const { userId } = req.body;
 
@@ -61,8 +83,7 @@ app.post("/api/deactivate", (req, res) => {
   res.json({ success: false, message: "User not found" });
 });
 
-
-// CLIENT CONNECTION
+// ---------- SOCKETS ----------
 io.on("connection", socket => {
   console.log("User connected:", socket.id);
 
@@ -72,6 +93,7 @@ io.on("connection", socket => {
       name: data.name,
       pcName: data.pcName,
       lastSeen: new Date().toISOString(),
+      offline: false
     };
     saveUsers();
     io.emit("users-updated", users);
@@ -80,6 +102,7 @@ io.on("connection", socket => {
   socket.on("heartbeat", () => {
     if (users[socket.id]) {
       users[socket.id].lastSeen = new Date().toISOString();
+      users[socket.id].offline = false;
       saveUsers();
       io.emit("users-updated", users);
     }
@@ -95,10 +118,13 @@ io.on("connection", socket => {
   });
 });
 
-
 app.get("/ping", (req, res) => {
   res.status(200).send("pong");
 });
 
+// ---------- START SERVER ----------
+const PORT = process.env.PORT || 5000;
 
-server.listen(5000, () => console.log("Server running at http://localhost:5000"));
+server.listen(PORT, () => {
+  console.log("Server running on port", PORT);
+});
