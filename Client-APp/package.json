@@ -2,11 +2,13 @@
   "name": "notification-client",
   "version": "1.0.0",
   "main": "electron/main.js",
-
   "scripts": {
     "dev": "vite",
     "electron": "electron .",
-    "start": "concurrently \"npm run dev\" \"npm run electron\""
+    "start": "concurrently \"npm run dev\" \"npm run electron\"",
+    "build:react": "vite build",
+    "build:electron": "electron-builder",
+    "build": "npm run build:react && electron-builder"
   },
   "dependencies": {
     "react": "^19.2.0",
@@ -17,6 +19,29 @@
     "@vitejs/plugin-react": "^4.7.0",
     "concurrently": "^8.2.2",
     "electron": "^28.3.3",
+    "electron-builder": "^26.0.12",
     "vite": "^5.4.21"
+  },
+  "build": {
+    "appId": "com.notification.client",
+    "productName": "Notification Client",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "dist/**",
+      "electron/**",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }

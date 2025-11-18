@@ -12,14 +12,17 @@ function createWindow() {
     }
   });
 
-  win.loadURL("http://localhost:5173");
+  if (process.env.NODE_ENV === "development") {
+    // DEV MODE
+    win.loadURL("http://localhost:5173");
+  } else {
+    // PRODUCTION MODE
+    win.loadFile(path.join(__dirname, "../dist/index.html"));
+  }
 }
 
 ipcMain.handle("notify", (event, data) => {
-  new Notification({
-    title: data.title,
-    body: data.body
-  }).show();
+  new Notification({ title: data.title, body: data.body }).show();
 });
 
 app.whenReady().then(createWindow);

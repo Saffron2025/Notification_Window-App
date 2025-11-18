@@ -1,24 +1,16 @@
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 
-const socket = io("https://notification-window-app-backend.onrender.com");
-
 function App() {
   const [name, setName] = useState(localStorage.getItem("clientName") || "");
   const [connected, setConnected] = useState(false);
-
-  // This ensures input always visible
   const [tempName, setTempName] = useState(name);
-
-  const saveName = () => {
-    if (!tempName.trim()) return;
-    localStorage.setItem("clientName", tempName);
-    setName(tempName);
-    window.location.reload();
-  };
 
   useEffect(() => {
     if (!name) return;
+
+    // Create socket instance INSIDE useEffect
+    const socket = io("https://notification-window-app-backend.onrender.com");
 
     socket.on("connect", () => {
       setConnected(true);
@@ -38,8 +30,22 @@ function App() {
       speechSynthesis.speak(speak);
     });
 
-    setInterval(() => socket.emit("heartbeat"), 30000);
+    const interval = setInterval(() => {
+      socket.emit("heartbeat");
+    }, 30000);
+
+    // Cleanup
+    return () => {
+      clearInterval(interval);
+      socket.disconnect();
+    };
   }, [name]);
+
+  const saveName = () => {
+    if (!tempName.trim()) return;
+    localStorage.setItem("clientName", tempName);
+    setName(tempName);
+  };
 
   return (
     <div style={{ padding: 20 }}>
