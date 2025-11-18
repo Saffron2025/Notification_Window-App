@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Panel</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<h1>Admin Panel</h1>
+
+<textarea id="msg" placeholder="Type message here..."></textarea><br>
+
+<label>From: <input id="from" placeholder="Admin"></label>
+<br><br>
+
+<button id="sendSelected">Send to Selected</button>
+<button id="sendAll">Send to All</button>
+
+<h2>Users</h2>
+<div id="users"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="admin.js"></script>
+
+</body>
+</html>

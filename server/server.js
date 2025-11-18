@@ -1,0 +1,104 @@
+const express = require("express");
+const http = require("http");
+const fs = require("fs");
+const path = require("path");
+const app = express();
+const server = http.createServer(app);
+const { Server } = require("socket.io");
+
+const io = new Server(server, { cors: { origin: "*" } });
+
+const USERS_FILE = path.join(__dirname, "users.json");
+
+let users = {};
+if (fs.existsSync(USERS_FILE)) {
+  users = JSON.parse(fs.readFileSync(USERS_FILE));
+}
+
+function saveUsers() {
+  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+}
+
+app.use("/", express.static(path.join(__dirname, "admin-panel")));
+app.use(express.json());
+
+// GET USERS
+app.get("/api/users", (req, res) => {
+  res.json(users);
+});
+
+// SEND MESSAGE
+app.post("/api/send", (req, res) => {
+  const { message, userIds = [], meta = {} } = req.body;
+  const now = new Date().toISOString();
+
+  const targets = userIds.length ? userIds : Object.keys(users);
+
+  targets.forEach(id => {
+    if (users[id]) {
+      users[id].lastMessage = message;
+      users[id].lastMessageAt = now;
+    }
+    io.to(id).emit("message", { message, meta: { ...meta, sentAt: now } });
+  });
+
+  saveUsers();
+  io.emit("users-updated", users);
+
+  res.json({ deliveredTo: targets.length, sentAt: now });
+});
+
+app.post("/api/deactivate", (req, res) => {
+  const { userId } = req.body;
+
+  if (users[userId]) {
+    delete users[userId];
+    saveUsers();
+    io.emit("users-updated", users);
+    return res.json({ success: true, message: "User removed" });
+  }
+
+  res.json({ success: false, message: "User not found" });
+});
+
+
+// CLIENT CONNECTION
+io.on("connection", socket => {
+  console.log("User connected:", socket.id);
+
+  socket.on("register", data => {
+    users[socket.id] = {
+      id: socket.id,
+      name: data.name,
+      pcName: data.pcName,
+      lastSeen: new Date().toISOString(),
+    };
+    saveUsers();
+    io.emit("users-updated", users);
+  });
+
+  socket.on("heartbeat", () => {
+    if (users[socket.id]) {
+      users[socket.id].lastSeen = new Date().toISOString();
+      saveUsers();
+      io.emit("users-updated", users);
+    }
+  });
+
+  socket.on("disconnect", () => {
+    if (users[socket.id]) {
+      users[socket.id].offline = true;
+      users[socket.id].lastSeen = new Date().toISOString();
+      saveUsers();
+      io.emit("users-updated", users);
+    }
+  });
+});
+
+
+app.get("/ping", (req, res) => {
+  res.status(200).send("pong");
+});
+
+
+server.listen(5000, () => console.log("Server running at http://localhost:5000"));
