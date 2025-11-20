@@ -1,42 +1,103 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
+/* Background wrapper */
+.wrapper {
+  width: 100%;
+  height: 100vh;
+  background: linear-gradient(135deg, #3a6073, #16222a);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+/* Card box */
+.card {
+  width: 380px;
+  padding: 30px;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(12px);
+  border-radius: 15px;
+  box-shadow: 0px 8px 25px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Titles */
+.title {
+  text-align: center;
+  margin-bottom: 10px;
+  font-size: 24px;
+  color: white;
+}
+
+.subtitle {
+  text-align: center;
+  margin-bottom: 10px;
+  font-size: 16px;
+  color: #dedede;
+}
+
+/* Input */
+.input-box {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  outline: none;
+  font-size: 16px;
+  margin-bottom: 15px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* Button */
+.primary-btn {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  background: #00b4db;
+  color: white;
+  font-weight: bold;
+  transition: 0.3s;
+}
+
+.primary-btn:hover {
+  background: #028bb0;
+}
+
+/* Text lines */
+.info-text {
+  color: white;
+  margin-bottom: 10px;
+  font-size: 15px;
+}
+
+/* Status badge */
+.badge {
+  padding: 4px 10px;
+  border-radius: 8px;
+  margin-left: 8px;
+  color: white;
+}
+
+/* Cyber Security Info */
+.info-box {
+  margin-top: 20px;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 15px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.info-title {
+  color: white;
+  margin-bottom: 10px;
+  font-size: 18px;
   text-align: center;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
-}
-
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
+.info-list {
+  color: white;
+  font-size: 14px;
+  line-height: 20px;
 }

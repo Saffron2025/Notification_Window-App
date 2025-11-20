@@ -1,28 +1,81 @@
-const { app, BrowserWindow, ipcMain, Notification } = require("electron");
+const { 
+  app, 
+  BrowserWindow, 
+  ipcMain, 
+  Notification, 
+  Tray, 
+  Menu 
+} = require("electron");
+
 const path = require("path");
 
+let win;
+let tray;
+
 function createWindow() {
-  const win = new BrowserWindow({
+  win = new BrowserWindow({
     width: 450,
     height: 380,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      webSecurity: false
     }
   });
 
+  // DevTools (optional)
+  win.webContents.openDevTools();
+
+  // Load correct source (dev/prod)
   if (process.env.NODE_ENV === "development") {
-    // DEV MODE
     win.loadURL("http://localhost:5173");
   } else {
-    // PRODUCTION MODE
     win.loadFile(path.join(__dirname, "../dist/index.html"));
   }
+
+  // ⭐  CLOSE = HIDE (background me chalta rahe)
+  win.on("close", (event) => {
+    if (!app.isQuiting) {
+      event.preventDefault();
+      win.hide(); // ❗ Window hide but app running
+    }
+  });
 }
 
-ipcMain.handle("notify", (event, data) => {
-  new Notification({ title: data.title, body: data.body }).show();
+app.whenReady().then(() => {
+  createWindow();
+
+  // ⭐ TRAY ICON (image optional)
+  tray = new Tray(null); // You can add icon path later
+  tray.setToolTip("Notification Client Running");
+
+  const trayMenu = Menu.buildFromTemplate([
+    {
+      label: "Open Client",
+      click: () => win.show()
+    },
+    {
+      label: "Quit",
+      click: () => {
+        app.isQuiting = true;
+        app.quit();
+      }
+    }
+  ]);
+
+  tray.setContextMenu(trayMenu);
 });
 
-app.whenReady().then(createWindow);
+// ⭐ Notifier
+ipcMain.handle("notify", (event, data) => {
+  new Notification({
+    title: data.title,
+    body: data.body
+  }).show();
+});
+
+// Quit handler
+app.on("before-quit", () => {
+  app.isQuiting = true;
+});

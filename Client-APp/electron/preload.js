@@ -1,5 +1,5 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("api", {
-  notify: (data) => ipcRenderer.invoke("notify", data),
+  notify: (data) => ipcRenderer.invoke("notify", data)
 });

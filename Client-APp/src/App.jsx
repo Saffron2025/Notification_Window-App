@@ -1,21 +1,22 @@
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
+import "./App.css";
 
 function App() {
-  const [name, setName] = useState(localStorage.getItem("clientName") || "");
+  const savedName = localStorage.getItem("clientName"); // IMPORTANT
   const [connected, setConnected] = useState(false);
-  const [tempName, setTempName] = useState(name);
+  const [tempName, setTempName] = useState("");
 
+  // --- CONNECT SOCKET ONLY IF NAME EXISTS ---
   useEffect(() => {
-    if (!name) return;
+    if (!savedName) return;
 
-    // Create socket instance INSIDE useEffect
     const socket = io("https://notification-window-app-backend.onrender.com");
 
     socket.on("connect", () => {
       setConnected(true);
       socket.emit("register", {
-        name,
+        name: savedName,
         pcName: navigator.userAgent
       });
     });
@@ -30,43 +31,78 @@ function App() {
       speechSynthesis.speak(speak);
     });
 
-    const interval = setInterval(() => {
-      socket.emit("heartbeat");
-    }, 30000);
+    const interval = setInterval(() => socket.emit("heartbeat"), 30000);
 
-    // Cleanup
     return () => {
       clearInterval(interval);
       socket.disconnect();
     };
-  }, [name]);
+  }, [savedName]);
 
+  // --- SAVE NAME ---
   const saveName = () => {
-    if (!tempName.trim()) return;
+    if (!tempName.trim()) return alert("Please enter your name!");
     localStorage.setItem("clientName", tempName);
-    setName(tempName);
+    window.location.reload();
   };
 
-  return (
-    <div style={{ padding: 20 }}>
-      <h2>Notification Client</h2>
+  // --------------------------------------------
+  //  FIRST TIME USER — SHOW INPUT SCREEN
+  // --------------------------------------------
+  if (!savedName) {
+    return (
+      <div className="wrapper">
+        <div className="card">
+          <h2 className="title">🔔 Notification Client</h2>
+          <h4 className="subtitle">Enter your name to continue</h4>
 
-      <h3>Enter Your Name</h3>
+          <input
+            className="input-box"
+            placeholder="Type your name..."
+            value={tempName}
+            onChange={(e) => setTempName(e.target.value)}
+          />
 
-      <input
-        value={tempName}
-        placeholder="Enter your name"
-        onChange={(e) => setTempName(e.target.value)}
-      />
-
-      <button onClick={saveName}>Save</button>
-
-      {name && (
-        <div style={{ marginTop: 20 }}>
-          <p><b>Name:</b> {name}</p>
-          <p>Status: {connected ? "Connected" : "Connecting..."}</p>
+          <button className="primary-btn" onClick={saveName}>
+            Save & Continue
+          </button>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  // --------------------------------------------
+  //  RETURNING USER — SHOW WELCOME SCREEN ONLY
+  // --------------------------------------------
+  return (
+    <div className="wrapper">
+      <div className="card">
+        <h2 className="title">👋 Welcome back, {savedName}!</h2>
+
+        <p className="info-text">Your secure notification client is active.</p>
+
+        <p className="info-text">
+          Status:
+          <span
+            className="badge"
+            style={{ background: connected ? "#28a745" : "#d9534f" }}
+          >
+            {connected ? "Connected" : "Connecting..."}
+          </span>
+        </p>
+
+        <div className="info-box">
+          <h4 className="info-title">🔐 Cyber Security Awareness</h4>
+          <ul className="info-list">
+            <li>❌ Never share OTP, PIN or Password.</li>
+            <li>🚫 Avoid unknown links or attachments.</li>
+            <li>⚠️ Beware of fake bank or company calls.</li>
+            <li>💳 Banks never ask card details on call.</li>
+            <li>🛡 Enable 2-factor authentication.</li>
+            <li>📞 Report scams to helpline 1930.</li>
+          </ul>
+        </div>
+      </div>
     </div>
   );
 }
