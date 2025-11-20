@@ -2,10 +2,23 @@ import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import "./App.css";
 
+// Generate a permanent device ID (only once)
+function getDeviceId() {
+  let id = localStorage.getItem("deviceId");
+  if (!id) {
+    id = "PC-" + Math.random().toString(36).substring(2, 15);
+    localStorage.setItem("deviceId", id);
+  }
+  return id;
+}
+
 function App() {
-  const savedName = localStorage.getItem("clientName"); // IMPORTANT
+  const savedName = localStorage.getItem("clientName");
+  const deviceId = getDeviceId();
+
   const [connected, setConnected] = useState(false);
   const [tempName, setTempName] = useState("");
+  const [lastOnline, setLastOnline] = useState("");
 
   // --- CONNECT SOCKET ONLY IF NAME EXISTS ---
   useEffect(() => {
@@ -15,10 +28,16 @@ function App() {
 
     socket.on("connect", () => {
       setConnected(true);
+
       socket.emit("register", {
+        deviceId,
         name: savedName,
         pcName: navigator.userAgent
       });
+    });
+
+    socket.on("disconnect", () => {
+      setConnected(false);
     });
 
     socket.on("message", (d) => {
@@ -31,7 +50,10 @@ function App() {
       speechSynthesis.speak(speak);
     });
 
-    const interval = setInterval(() => socket.emit("heartbeat"), 30000);
+    // Auto heartbeat every 30 seconds
+    const interval = setInterval(() => {
+      socket.emit("heartbeat");
+    }, 30000);
 
     return () => {
       clearInterval(interval);
@@ -46,9 +68,7 @@ function App() {
     window.location.reload();
   };
 
-  // --------------------------------------------
-  //  FIRST TIME USER — SHOW INPUT SCREEN
-  // --------------------------------------------
+  // FIRST TIME USER — INPUT SCREEN
   if (!savedName) {
     return (
       <div className="wrapper">
@@ -71,15 +91,15 @@ function App() {
     );
   }
 
-  // --------------------------------------------
-  //  RETURNING USER — SHOW WELCOME SCREEN ONLY
-  // --------------------------------------------
+  // RETURNING USER — WELCOME UI
   return (
     <div className="wrapper">
       <div className="card">
         <h2 className="title">👋 Welcome back, {savedName}!</h2>
 
-        <p className="info-text">Your secure notification client is active.</p>
+        <p className="info-text">
+          Your secure notification client is active.
+        </p>
 
         <p className="info-text">
           Status:
@@ -87,7 +107,14 @@ function App() {
             className="badge"
             style={{ background: connected ? "#28a745" : "#d9534f" }}
           >
-            {connected ? "Connected" : "Connecting..."}
+            {connected ? "Connected" : "Reconnecting..."}
+          </span>
+        </p>
+
+        <p className="info-text">
+          Last Online:  
+          <span className="last-online">
+            {connected ? "Now" : new Date().toLocaleString()}
           </span>
         </p>
 
@@ -96,10 +123,10 @@ function App() {
           <ul className="info-list">
             <li>❌ Never share OTP, PIN or Password.</li>
             <li>🚫 Avoid unknown links or attachments.</li>
-            <li>⚠️ Beware of fake bank or company calls.</li>
+            <li>⚠️ Beware of fake bank/company calls.</li>
             <li>💳 Banks never ask card details on call.</li>
             <li>🛡 Enable 2-factor authentication.</li>
-            <li>📞 Report scams to helpline 1930.</li>
+            <li>📞 Report scams to 1930.</li>
           </ul>
         </div>
       </div>

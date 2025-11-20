@@ -1,137 +1,140 @@
-import { useEffect, useState } from "react";
-import { io } from "socket.io-client";
-import "./App.css";
+const express = require("express");
+const http = require("http");
+const fs = require("fs");
+const path = require("path");
+const app = express();
+const server = http.createServer(app);
+const { Server } = require("socket.io");
 
-// Generate a permanent device ID (only once)
-function getDeviceId() {
-  let id = localStorage.getItem("deviceId");
-  if (!id) {
-    id = "PC-" + Math.random().toString(36).substring(2, 15);
-    localStorage.setItem("deviceId", id);
-  }
-  return id;
+const io = new Server(server, {
+  cors: { origin: "*", methods: ["GET", "POST"] }
+});
+
+// USERS FILE
+const USERS_FILE = path.join(__dirname, "users.json");
+
+// Ensure users.json exists
+if (!fs.existsSync(USERS_FILE)) {
+  fs.writeFileSync(USERS_FILE, "{}");
 }
 
-function App() {
-  const savedName = localStorage.getItem("clientName");
-  const deviceId = getDeviceId();
+let users = JSON.parse(fs.readFileSync(USERS_FILE));
 
-  const [connected, setConnected] = useState(false);
-  const [tempName, setTempName] = useState("");
-  const [lastOnline, setLastOnline] = useState("");
+// Save users to file
+function saveUsers() {
+  try {
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+  } catch (e) {}
+}
 
-  // --- CONNECT SOCKET ONLY IF NAME EXISTS ---
-  useEffect(() => {
-    if (!savedName) return;
+// Serve admin panel
+app.use("/", express.static(path.join(__dirname, "admin-Panel")));
+app.use(express.json());
 
-    const socket = io("https://notification-window-app-backend.onrender.com");
+// Get Users API
+app.get("/api/users", (req, res) => {
+  res.json(users);
+});
 
-    socket.on("connect", () => {
-      setConnected(true);
+// Send Message API
+app.post("/api/send", (req, res) => {
+  const { message, userIds = [], meta = {} } = req.body;
+  const now = new Date().toISOString();
 
-      socket.emit("register", {
+  const targets = userIds.length ? userIds : Object.keys(users);
+
+  targets.forEach(id => {
+    if (users[id]) {
+      users[id].lastMessage = message;
+      users[id].lastMessageAt = now;
+    }
+
+    io.to(id).emit("message", {
+      message,
+      meta: { ...meta, sentAt: now }
+    });
+  });
+
+  saveUsers();
+  io.emit("users-updated", users);
+
+  res.json({ success: true, deliveredTo: targets.length });
+});
+
+// Deactivate user
+app.post("/api/deactivate", (req, res) => {
+  const { userId } = req.body;
+
+  if (users[userId]) {
+    delete users[userId];
+    saveUsers();
+    io.emit("users-updated", users);
+    return res.json({ success: true });
+  }
+
+  res.json({ success: false });
+});
+
+// SOCKET HANDLING
+io.on("connection", socket => {
+  console.log("Connected:", socket.id);
+
+  socket.on("register", data => {
+    const { deviceId, name, pcName } = data;
+
+    // Check if this deviceId already exists
+    let existing = Object.values(users).find(u => u.deviceId === deviceId);
+
+    if (existing) {
+      // remove old entry
+      delete users[existing.id];
+
+      // update with new socketId
+      existing.id = socket.id;
+      existing.lastSeen = new Date().toISOString();
+      existing.offline = false;
+
+      users[socket.id] = existing;
+    } else {
+      // First time user
+      users[socket.id] = {
+        id: socket.id,
         deviceId,
-        name: savedName,
-        pcName: navigator.userAgent
-      });
-    });
+        name,
+        pcName,
+        offline: false,
+        lastSeen: new Date().toISOString()
+      };
+    }
 
-    socket.on("disconnect", () => {
-      setConnected(false);
-    });
+    saveUsers();
+    io.emit("users-updated", users);
+  });
 
-    socket.on("message", (d) => {
-      window.api.notify({
-        title: d.meta.from || "Message",
-        body: d.message
-      });
+  // HEARTBEAT (every 30 seconds)
+  socket.on("heartbeat", () => {
+    if (users[socket.id]) {
+      users[socket.id].lastSeen = new Date().toISOString();
+      users[socket.id].offline = false;
+      saveUsers();
+      io.emit("users-updated", users);
+    }
+  });
 
-      const speak = new SpeechSynthesisUtterance(d.message);
-      speechSynthesis.speak(speak);
-    });
+  // DISCONNECT = PC OFF / APP CLOSED
+  socket.on("disconnect", () => {
+    if (users[socket.id]) {
+      users[socket.id].offline = true;
+      users[socket.id].lastSeen = new Date().toISOString();
+      saveUsers();
+      io.emit("users-updated", users);
+    }
+  });
 
-    // Auto heartbeat every 30 seconds
-    const interval = setInterval(() => {
-      socket.emit("heartbeat");
-    }, 30000);
+});
 
-    return () => {
-      clearInterval(interval);
-      socket.disconnect();
-    };
-  }, [savedName]);
+// Render keep alive
+app.get("/ping", (req, res) => res.send("pong"));
 
-  // --- SAVE NAME ---
-  const saveName = () => {
-    if (!tempName.trim()) return alert("Please enter your name!");
-    localStorage.setItem("clientName", tempName);
-    window.location.reload();
-  };
-
-  // FIRST TIME USER — INPUT SCREEN
-  if (!savedName) {
-    return (
-      <div className="wrapper">
-        <div className="card">
-          <h2 className="title">🔔 Notification Client</h2>
-          <h4 className="subtitle">Enter your name to continue</h4>
-
-          <input
-            className="input-box"
-            placeholder="Type your name..."
-            value={tempName}
-            onChange={(e) => setTempName(e.target.value)}
-          />
-
-          <button className="primary-btn" onClick={saveName}>
-            Save & Continue
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // RETURNING USER — WELCOME UI
-  return (
-    <div className="wrapper">
-      <div className="card">
-        <h2 className="title">👋 Welcome back, {savedName}!</h2>
-
-        <p className="info-text">
-          Your secure notification client is active.
-        </p>
-
-        <p className="info-text">
-          Status:
-          <span
-            className="badge"
-            style={{ background: connected ? "#28a745" : "#d9534f" }}
-          >
-            {connected ? "Connected" : "Reconnecting..."}
-          </span>
-        </p>
-
-        <p className="info-text">
-          Last Online:  
-          <span className="last-online">
-            {connected ? "Now" : new Date().toLocaleString()}
-          </span>
-        </p>
-
-        <div className="info-box">
-          <h4 className="info-title">🔐 Cyber Security Awareness</h4>
-          <ul className="info-list">
-            <li>❌ Never share OTP, PIN or Password.</li>
-            <li>🚫 Avoid unknown links or attachments.</li>
-            <li>⚠️ Beware of fake bank/company calls.</li>
-            <li>💳 Banks never ask card details on call.</li>
-            <li>🛡 Enable 2-factor authentication.</li>
-            <li>📞 Report scams to 1930.</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default App;
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => console.log("Server running on port", PORT));
