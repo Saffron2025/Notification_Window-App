@@ -14,17 +14,36 @@ function format(t) {
   return t ? new Date(t).toLocaleString() : "-";
 }
 
+// Toggle speak for a single user
+async function toggleSpeak(userId, checked) {
+  await fetch("/api/toggleSpeak", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId, speak: checked })
+  });
+}
+
 // Render users in admin panel
 function renderUsers(users) {
   usersDiv.innerHTML = "";
   Object.values(users).forEach(u => {
     usersDiv.innerHTML += `
       <div class="user-row">
+
         <input type="checkbox" class="chk" value="${u.id}">
         <b>${u.name}</b> (${u.pcName})
+
         <span class="${u.offline ? 'offline' : 'online'}">
           ${u.offline ? 'Offline' : 'Online'}
         </span>
+
+        <!-- 🔥 SPEAK TOGGLE -->
+        <label style="margin-left:10px">
+          <input type="checkbox" 
+                 onchange="toggleSpeak('${u.id}', this.checked)"
+                 ${u.speak ? "checked" : ""}>
+          Speak
+        </label>
 
         <button class="deactivate-btn" onclick="deactivateUser('${u.id}')">
           Deactivate
@@ -49,13 +68,17 @@ document.getElementById("sendSelected").onclick = async () => {
   await fetch("/api/send", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, userIds: checked, meta: { from } })
+    body: JSON.stringify({ 
+      message, 
+      userIds: checked, 
+      meta: { from } 
+    })
   });
 
   alert("Sent to selected users");
 };
 
-// Send message to ALL users
+// Send message to ALL
 document.getElementById("sendAll").onclick = async () => {
   const message = msg.value.trim();
   const from = document.getElementById("from").value.trim();
@@ -65,7 +88,11 @@ document.getElementById("sendAll").onclick = async () => {
   await fetch("/api/send", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, userIds: [], meta: { from } })
+    body: JSON.stringify({ 
+      message, 
+      userIds: [], 
+      meta: { from } 
+    })
   });
 
   alert("Sent to ALL users");
@@ -85,8 +112,8 @@ async function deactivateUser(id) {
   loadUsers();
 }
 
-// Update user list LIVE when server emits changes
+// LIVE UPDATE
 socket.on("users-updated", renderUsers);
 
-// Start loading initial users
+// INITIAL LOAD
 loadUsers();

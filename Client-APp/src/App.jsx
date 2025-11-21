@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import "./App.css";
 
-// Generate a permanent device ID (only once)
 function getDeviceId() {
   let id = localStorage.getItem("deviceId");
   if (!id) {
@@ -13,14 +12,21 @@ function getDeviceId() {
 }
 
 function App() {
-  const savedName = localStorage.getItem("clientName");
+  const [savedName, setSavedName] = useState(null);
+  const [tempName, setTempName] = useState("");
+  const [connected, setConnected] = useState(false);
+
   const deviceId = getDeviceId();
 
-  const [connected, setConnected] = useState(false);
-  const [tempName, setTempName] = useState("");
-  const [lastOnline, setLastOnline] = useState("");
+  // Load saved name when app starts
+  useEffect(() => {
+    const name = localStorage.getItem("clientName");
+    if (name) {
+      setSavedName(name);  // <- this ensures cyber UI is shown always
+    }
+  }, []);
 
-  // --- CONNECT SOCKET ONLY IF NAME EXISTS ---
+  // Connect socket only if name is saved
   useEffect(() => {
     if (!savedName) return;
 
@@ -36,54 +42,59 @@ function App() {
       });
     });
 
-    socket.on("disconnect", () => {
-      setConnected(false);
-    });
+    socket.on("disconnect", () => setConnected(false));
 
     socket.on("message", (d) => {
-      window.api.notify({
-        title: d.meta.from || "Message",
-        body: d.message
-      });
 
-      const speak = new SpeechSynthesisUtterance(d.message);
-      speechSynthesis.speak(speak);
-    });
+  // Always show notification
+  window.api.notify({
+    title: d.meta.from || "Message",
+    body: d.message
+  });
 
-    // Auto heartbeat every 30 seconds
-    const interval = setInterval(() => {
+  // 🔥 Speak only if backend NOTE says "speak = true"
+  if (d.meta.speak) {
+    try {
+      const voice = new SpeechSynthesisUtterance(d.message);
+      speechSynthesis.speak(voice);
+    } catch (e) {}
+  }
+});
+
+    const hb = setInterval(() => {
       socket.emit("heartbeat");
     }, 30000);
 
     return () => {
-      clearInterval(interval);
+      clearInterval(hb);
       socket.disconnect();
     };
   }, [savedName]);
 
-  // --- SAVE NAME ---
-  const saveName = () => {
+  // Save name (first time only)
+  const saveNameFunc = () => {
     if (!tempName.trim()) return alert("Please enter your name!");
+
     localStorage.setItem("clientName", tempName);
-    window.location.reload();
+    setSavedName(tempName);   // <- Now input UI never shows again
   };
 
-  // FIRST TIME USER — INPUT SCREEN
+  // IF NO NAME → INPUT PAGE
   if (!savedName) {
     return (
       <div className="wrapper">
         <div className="card">
           <h2 className="title">🔔 Notification Client</h2>
-          <h4 className="subtitle">Enter your name to continue</h4>
+          <h4 className="subtitle">Enter your name</h4>
 
           <input
             className="input-box"
-            placeholder="Type your name..."
             value={tempName}
             onChange={(e) => setTempName(e.target.value)}
+            placeholder="Your name..."
           />
 
-          <button className="primary-btn" onClick={saveName}>
+          <button className="primary-btn" onClick={saveNameFunc}>
             Save & Continue
           </button>
         </div>
@@ -91,17 +102,13 @@ function App() {
     );
   }
 
-  // RETURNING USER — WELCOME UI
+  // IF NAME SAVED → ALWAYS CYBER UI
   return (
     <div className="wrapper">
       <div className="card">
-        <h2 className="title">👋 Welcome back, {savedName}!</h2>
+        <h2 className="title">👋 Welcome, {savedName}!</h2>
 
-        <p className="info-text">
-          Your secure notification client is active.
-        </p>
-
-        <p className="info-text">
+        <p>
           Status:
           <span
             className="badge"
@@ -111,22 +118,14 @@ function App() {
           </span>
         </p>
 
-        <p className="info-text">
-          Last Online:  
-          <span className="last-online">
-            {connected ? "Now" : new Date().toLocaleString()}
-          </span>
-        </p>
-
         <div className="info-box">
           <h4 className="info-title">🔐 Cyber Security Awareness</h4>
           <ul className="info-list">
             <li>❌ Never share OTP, PIN or Password.</li>
-            <li>🚫 Avoid unknown links or attachments.</li>
-            <li>⚠️ Beware of fake bank/company calls.</li>
-            <li>💳 Banks never ask card details on call.</li>
-            <li>🛡 Enable 2-factor authentication.</li>
-            <li>📞 Report scams to 1930.</li>
+            <li>🚫 Avoid unknown links.</li>
+            <li>⚠️ Beware of fake bank calls.</li>
+            <li>💳 Never share card details.</li>
+            <li>🛡 Enable 2-Factor Authentication.</li>
           </ul>
         </div>
       </div>

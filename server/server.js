@@ -20,23 +20,42 @@ if (!fs.existsSync(USERS_FILE)) {
 
 let users = JSON.parse(fs.readFileSync(USERS_FILE));
 
-// Save users to file
+// Save users
 function saveUsers() {
   try {
     fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
-  } catch (e) {}
+  } catch (e) {
+    console.log("File write error", e);
+  }
 }
 
 // Serve admin panel
 app.use("/", express.static(path.join(__dirname, "admin-Panel")));
 app.use(express.json());
 
-// Get Users API
+
+// 🔥 SPEAK TOGGLE API (VERY IMPORTANT)
+app.post("/api/toggleSpeak", (req, res) => {
+  const { userId, speak } = req.body;
+
+  if (users[userId]) {
+    users[userId].speak = speak;
+    saveUsers();
+    io.emit("users-updated", users);
+    return res.json({ success: true });
+  }
+
+  res.json({ success: false });
+});
+
+
+// GET USERS
 app.get("/api/users", (req, res) => {
   res.json(users);
 });
 
-// Send Message API
+
+// SEND MESSAGE API
 app.post("/api/send", (req, res) => {
   const { message, userIds = [], meta = {} } = req.body;
   const now = new Date().toISOString();
@@ -51,7 +70,11 @@ app.post("/api/send", (req, res) => {
 
     io.to(id).emit("message", {
       message,
-      meta: { ...meta, sentAt: now }
+      meta: {
+        ...meta,
+        speak: users[id]?.speak ?? false,   // 🔥 PER USER VOICE CONTROL
+        sentAt: now
+      }
     });
   });
 
@@ -61,7 +84,8 @@ app.post("/api/send", (req, res) => {
   res.json({ success: true, deliveredTo: targets.length });
 });
 
-// Deactivate user
+
+// DEACTIVATE USER
 app.post("/api/deactivate", (req, res) => {
   const { userId } = req.body;
 
@@ -75,6 +99,7 @@ app.post("/api/deactivate", (req, res) => {
   res.json({ success: false });
 });
 
+
 // SOCKET HANDLING
 io.on("connection", socket => {
   console.log("Connected:", socket.id);
@@ -82,27 +107,24 @@ io.on("connection", socket => {
   socket.on("register", data => {
     const { deviceId, name, pcName } = data;
 
-    // Check if this deviceId already exists
     let existing = Object.values(users).find(u => u.deviceId === deviceId);
 
     if (existing) {
-      // remove old entry
       delete users[existing.id];
 
-      // update with new socketId
       existing.id = socket.id;
-      existing.lastSeen = new Date().toISOString();
       existing.offline = false;
+      existing.lastSeen = new Date().toISOString();
 
       users[socket.id] = existing;
     } else {
-      // First time user
       users[socket.id] = {
         id: socket.id,
         deviceId,
         name,
         pcName,
         offline: false,
+        speak: false, // 🔥 default voice = OFF
         lastSeen: new Date().toISOString()
       };
     }
@@ -111,17 +133,15 @@ io.on("connection", socket => {
     io.emit("users-updated", users);
   });
 
-  // HEARTBEAT (every 30 seconds)
   socket.on("heartbeat", () => {
     if (users[socket.id]) {
-      users[socket.id].lastSeen = new Date().toISOString();
       users[socket.id].offline = false;
+      users[socket.id].lastSeen = new Date().toISOString();
       saveUsers();
       io.emit("users-updated", users);
     }
   });
 
-  // DISCONNECT = PC OFF / APP CLOSED
   socket.on("disconnect", () => {
     if (users[socket.id]) {
       users[socket.id].offline = true;
@@ -130,11 +150,12 @@ io.on("connection", socket => {
       io.emit("users-updated", users);
     }
   });
-
 });
+
 
 // Render keep alive
 app.get("/ping", (req, res) => res.send("pong"));
 
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log("Server running on port", PORT));
+server.listen(process.env.PORT || 5000, () =>
+  console.log("Server running")
+);
