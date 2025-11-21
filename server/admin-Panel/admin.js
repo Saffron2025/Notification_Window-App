@@ -1,29 +1,29 @@
-// Connect socket.io (for live user updates)
+// Connect socket.io
 const socket = io();
 const usersDiv = document.getElementById("users");
 
-// Fetch all users initially
+// Load users initially
 async function loadUsers() {
   const res = await fetch("/api/users");
   const users = await res.json();
   renderUsers(users);
 }
 
-// Convert timestamp to readable format
+// Format time
 function format(t) {
   return t ? new Date(t).toLocaleString() : "-";
 }
 
-// Toggle speak for a single user
-async function toggleSpeak(userId, checked) {
+// Toggle speak
+async function toggleSpeak(id, checked) {
   await fetch("/api/toggleSpeak", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId, speak: checked })
+    body: JSON.stringify({ userId: id, speak: checked })
   });
 }
 
-// Render users in admin panel
+// Render users
 function renderUsers(users) {
   usersDiv.innerHTML = "";
   Object.values(users).forEach(u => {
@@ -37,12 +37,12 @@ function renderUsers(users) {
           ${u.offline ? 'Offline' : 'Online'}
         </span>
 
-        <!-- 🔥 SPEAK TOGGLE -->
-        <label style="margin-left:10px">
+        <!-- Speak Toggle -->
+        <label class="switch">
           <input type="checkbox" 
                  onchange="toggleSpeak('${u.id}', this.checked)"
                  ${u.speak ? "checked" : ""}>
-          Speak
+          <span class="slider"></span>
         </label>
 
         <button class="deactivate-btn" onclick="deactivateUser('${u.id}')">
@@ -57,50 +57,42 @@ function renderUsers(users) {
   });
 }
 
-// Send message to selected users
+// Send to selected users
 document.getElementById("sendSelected").onclick = async () => {
   const message = msg.value.trim();
   const from = document.getElementById("from").value.trim();
   const checked = [...document.querySelectorAll(".chk:checked")].map(x => x.value);
 
-  if (!message) return alert("Enter a message first!");
+  if (!message) return alert("Enter a message!");
 
   await fetch("/api/send", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ 
-      message, 
-      userIds: checked, 
-      meta: { from } 
-    })
+    body: JSON.stringify({ message, userIds: checked, meta: { from } })
   });
 
-  alert("Sent to selected users");
+  alert("Sent to selected!");
 };
 
-// Send message to ALL
+// Send to ALL
 document.getElementById("sendAll").onclick = async () => {
   const message = msg.value.trim();
   const from = document.getElementById("from").value.trim();
 
-  if (!message) return alert("Enter a message first!");
+  if (!message) return alert("Enter a message!");
 
   await fetch("/api/send", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ 
-      message, 
-      userIds: [], 
-      meta: { from } 
-    })
+    body: JSON.stringify({ message, userIds: [], meta: { from } })
   });
 
-  alert("Sent to ALL users");
+  alert("Sent to ALL!");
 };
 
-// Deactivate a user
+// Deactivate user
 async function deactivateUser(id) {
-  if (!confirm("Are you sure you want to deactivate this user?")) return;
+  if (!confirm("Deactivate this user?")) return;
 
   await fetch("/api/deactivate", {
     method: "POST",
@@ -112,8 +104,8 @@ async function deactivateUser(id) {
   loadUsers();
 }
 
-// LIVE UPDATE
+// Socke.io live update
 socket.on("users-updated", renderUsers);
 
-// INITIAL LOAD
+// First load
 loadUsers();

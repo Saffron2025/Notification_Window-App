@@ -1,26 +1,46 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
   <title>Admin Panel</title>
   <link rel="stylesheet" href="style.css">
+  <script src="/socket.io/socket.io.js"></script>
 </head>
+
 <body>
 
-<h1>Admin Panel</h1>
+  <!-- TOP HEADER -->
+  <header class="header">
+    <h1>🔐 Admin Control Panel</h1>
+  </header>
 
-<textarea id="msg" placeholder="Type message here..."></textarea><br>
+  <div class="container">
 
-<label>From: <input id="from" placeholder="Admin"></label>
-<br><br>
+    <!-- SEND MESSAGE BOX -->
+    <section class="card">
+      <h2>Send Message</h2>
 
-<button id="sendSelected">Send to Selected</button>
-<button id="sendAll">Send to All</button>
+      <label class="label">Message</label>
+      <textarea id="msg" placeholder="Type message here..."></textarea>
 
-<h2>Users</h2>
-<div id="users"></div>
+      <label class="label">From</label>
+      <input id="from" placeholder="Admin / System / Support">
 
-<script src="/socket.io/socket.io.js"></script>
-<script src="admin.js"></script>
+      <div class="btn-group">
+        <button id="sendSelected" class="btn primary">Send to Selected</button>
+        <button id="sendAll" class="btn danger">Send to All</button>
+      </div>
+    </section>
+
+    <!-- USERS LIST -->
+    <section class="card">
+      <h2>Active Users</h2>
+      <div id="users" class="users-list"></div>
+    </section>
+
+  </div>
+
+  <script src="admin.js"></script>
 
 </body>
 </html>
