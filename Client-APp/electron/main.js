@@ -7,20 +7,21 @@ const {
   Menu
 } = require("electron");
 
+const AutoLaunch = require("auto-launch"); // ⭐ Auto Launch
 const path = require("path");
 
 let win;
 let tray;
 
-// ⭐⭐⭐ PREVENT MULTIPLE APP INSTANCES
+/* ---------------------------------------------------------
+   ✔ Prevent multiple app instances
+--------------------------------------------------------- */
 const gotLock = app.requestSingleInstanceLock();
-
 if (!gotLock) {
   app.quit();
   process.exit(0);
 }
 
-// If user opens app again → show previous window
 app.on("second-instance", () => {
   if (win) {
     if (win.isMinimized()) win.restore();
@@ -28,11 +29,28 @@ app.on("second-instance", () => {
   }
 });
 
+/* ---------------------------------------------------------
+   ✔ Enable Auto Launch on Windows startup
+--------------------------------------------------------- */
+const autoLauncher = new AutoLaunch({
+  name: "Notification Client",
+  path: process.execPath
+});
+
+autoLauncher.isEnabled().then(isEnabled => {
+  if (!isEnabled) autoLauncher.enable();
+});
+
+/* ---------------------------------------------------------
+   ✔ Create Window 
+--------------------------------------------------------- */
 function createWindow() {
   win = new BrowserWindow({
     width: 430,
     height: 360,
     show: false,
+    resizable: false,
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -43,16 +61,13 @@ function createWindow() {
 
   win.once("ready-to-show", () => win.show());
 
-  // Dev tools (optional)
-  // win.webContents.openDevTools();
-
   if (process.env.NODE_ENV === "development") {
     win.loadURL("http://localhost:5173");
   } else {
     win.loadFile(path.join(__dirname, "../dist/index.html"));
   }
 
-  // ❗ Close = MINIMIZE (background me rahega)
+  // ❗ Window close → only hide (background me chalega)
   win.on("close", (event) => {
     if (!app.isQuiting) {
       event.preventDefault();
@@ -61,20 +76,19 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(() => {
-  createWindow();
-
-  // ⭐ TRAY ICON
-  tray = new Tray(path.join(__dirname, "icon.png")); // your icon
-  tray.setToolTip("Notification Client");
+/* ---------------------------------------------------------
+   ✔ Create Tray icon
+--------------------------------------------------------- */
+function createTray() {
+  tray = new Tray(path.join(__dirname, "icon.png"));
 
   const trayMenu = Menu.buildFromTemplate([
     {
-      label: "Open",
+      label: "Open Notification Client",
       click: () => win.show()
     },
     {
-      label: "Quit",
+      label: "Quit App",
       click: () => {
         app.isQuiting = true;
         app.quit();
@@ -82,10 +96,24 @@ app.whenReady().then(() => {
     }
   ]);
 
+  tray.setToolTip("Notification Client");
   tray.setContextMenu(trayMenu);
+
+  // Click on tray = show window
+  tray.on("click", () => win.show());
+}
+
+/* ---------------------------------------------------------
+   ✔ App ready
+--------------------------------------------------------- */
+app.whenReady().then(() => {
+  createWindow();
+  createTray();
 });
 
-// IPC Notification
+/* ---------------------------------------------------------
+   ✔ Notification handler (called from React frontend)
+--------------------------------------------------------- */
 ipcMain.handle("notify", (event, data) => {
   new Notification({
     title: data.title,
@@ -93,4 +121,7 @@ ipcMain.handle("notify", (event, data) => {
   }).show();
 });
 
+/* ---------------------------------------------------------
+   ✔ Quit Handling
+--------------------------------------------------------- */
 app.on("before-quit", () => (app.isQuiting = true));
