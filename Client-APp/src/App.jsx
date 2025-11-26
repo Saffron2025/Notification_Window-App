@@ -26,7 +26,7 @@ export default function App() {
   useEffect(() => {
     if (!savedName) return;
 
-    const socket = io("https://notification-window-app-backend.onrender.com");
+    const socket = io("https://notification-window-app-backend-30qv.onrender.com");
 
     socket.on("connect", () => {
       setConnected(true);

@@ -3,7 +3,7 @@ const io = require("socket.io-client");
 let socket;
 
 function connect(name) {
-  socket = io("https://notification-window-app-backend.onrender.com");
+  socket = io("https://notification-window-app-backend-30qv.onrender.com");
 
   socket.on("connect", () => {
     document.getElementById("status").innerText = "Connected!";
