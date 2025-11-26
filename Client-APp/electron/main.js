@@ -29,6 +29,32 @@ app.on("second-instance", () => {
   }
 });
 
+
+function showCustomNotification(title, body) {
+  const notifyWin = new BrowserWindow({
+    width: 350,
+    height: 110,
+    frame: false,
+    alwaysOnTop: true,
+    transparent: true,
+    resizable: false,
+    skipTaskbar: true,
+    x: 1000,  // right bottom corner approx
+    y: 650,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+    }
+  });
+
+  notifyWin.loadFile(path.join(__dirname, "notification.html"));
+
+  // Pass data to window
+  notifyWin.webContents.on("did-finish-load", () => {
+    notifyWin.webContents.send("notify-data", { title, body });
+  });
+}
+
+
 /* ---------------------------------------------------------
    ✔ Enable Auto Launch on Windows startup
 --------------------------------------------------------- */
@@ -46,18 +72,22 @@ autoLauncher.isEnabled().then(isEnabled => {
 --------------------------------------------------------- */
 function createWindow() {
   win = new BrowserWindow({
-    width: 430,
-    height: 360,
-    show: false,
-    resizable: false,
-    autoHideMenuBar: true,
-    webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
-      contextIsolation: true,
-      nodeIntegration: false,
-      webSecurity: false
-    }
-  });
+  width: 430,
+  height: 360,
+  minWidth: 430,
+  minHeight: 360,
+  show: false,
+  resizable: true,        // ⭐ MUST BE TRUE
+  maximizable: true,       // ⭐ Ensure maximize allowed
+  autoHideMenuBar: true,
+  webPreferences: {
+    preload: path.join(__dirname, "preload.js"),
+    contextIsolation: true,
+    nodeIntegration: false,
+    webSecurity: false
+  }
+});
+
 
   win.once("ready-to-show", () => win.show());
 
@@ -115,11 +145,9 @@ app.whenReady().then(() => {
    ✔ Notification handler (called from React frontend)
 --------------------------------------------------------- */
 ipcMain.handle("notify", (event, data) => {
-  new Notification({
-    title: data.title,
-    body: data.body
-  }).show();
+  showCustomNotification(data.title, data.body);
 });
+
 
 /* ---------------------------------------------------------
    ✔ Quit Handling

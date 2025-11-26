@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: rgba(30,30,30,0.95);
+      color: white;
+      font-family: Arial;
+      border-radius: 10px;
+    }
+    .box {
+      padding: 10px;
+    }
+    .close-btn {
+      position: absolute;
+      right: 10px;
+      top: 5px;
+      cursor: pointer;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div id="title"></div>
+    <div id="msg"></div>
+    <div class="close-btn" onclick="window.close()">×</div>
+  </div>
+
+  <script>
+    window.api.receive("notify-data", (data) => {
+      document.getElementById("title").innerText = data.title;
+      document.getElementById("msg").innerText = data.body;
+    });
+  </script>
+</body>
+</html>
